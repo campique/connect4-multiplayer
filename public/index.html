@@ -106,6 +106,12 @@
             padding: 0.5rem;
             font-size: 1rem;
         }
+        #rematchSection {
+            margin-top: 20px;
+        }
+        #rematchSection button {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
@@ -128,6 +134,11 @@
             <div id="scoreboard" class="scoreboard"></div>
             <button id="restartButton" class="restart-button">Terug naar lobby</button>
         </div>
+        <div id="rematchSection" class="hidden">
+            <p>Wil je nog een keer spelen?</p>
+            <button id="rematchYes" class="menu-button">Ja</button>
+            <button id="rematchNo" class="menu-button">Nee</button>
+        </div>
     </div>
 
     <script>
@@ -143,6 +154,9 @@
         const restartButton = document.getElementById('restartButton');
         const statusDisplay = document.getElementById('status');
         const scoreboardDisplay = document.getElementById('scoreboard');
+        const rematchSection = document.getElementById('rematchSection');
+        const rematchYesButton = document.getElementById('rematchYes');
+        const rematchNoButton = document.getElementById('rematchNo');
 
         const ROWS = 6;
         const COLS = 7;
@@ -229,6 +243,16 @@
             playerId = null;
         });
 
+        rematchYesButton.addEventListener('click', () => {
+            socket.emit('rematchVote', { tableId, vote: true });
+            rematchSection.classList.add('hidden');
+        });
+
+        rematchNoButton.addEventListener('click', () => {
+            socket.emit('rematchVote', { tableId, vote: false });
+            rematchSection.classList.add('hidden');
+        });
+
         socket.on('tablesUpdate', (tables) => {
             tablesContainer.innerHTML = '';
             if (tables.length === 0) {
@@ -283,6 +307,17 @@
                 endGame(`${winner === playerId ? 'Jij wint' : 'Tegenstander wint'}!`);
             }
             updateScoreboard();
+        });
+
+        socket.on('askRematch', () => {
+            rematchSection.classList.remove('hidden');
+        });
+
+        socket.on('returnToLobby', () => {
+            gameContainer.classList.add('hidden');
+            lobbyContainer.classList.remove('hidden');
+            rematchSection.classList.add('hidden');
+            socket.emit('getTables');
         });
 
         socket.on('opponentLeft', () => {
