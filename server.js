@@ -6,16 +6,19 @@ const path = require('path');
 
 app.use(express.static('public'));
 
-const tables = Array(5).fill().map(() => ({ players: [], gameState: null }));
+const tables = Array(5).fill().map(() => ({ players: [] }));
 
 io.on('connection', (socket) => {
     let playerName = '';
 
     socket.on('setName', (name) => {
         playerName = name;
+        console.log(`Player ${name} connected`);
+        socket.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
     });
 
     socket.on('getTables', () => {
+        console.log('getTables called, sending:', tables.map(table => ({ players: table.players.length })));
         socket.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
     });
 
@@ -74,6 +77,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
+        console.log(`Player ${playerName} disconnected`);
         for (let i = 0; i < tables.length; i++) {
             const table = tables[i];
             const playerIndex = table.players.findIndex(player => player.id === socket.id);
