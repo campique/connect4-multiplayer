@@ -45,25 +45,40 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('makeMove', ({ tableId, col }) => {
-        const table = tables[tableId];
-        if (table && table.gameState) {
-            const row = findLowestEmptyRow(table.gameState.board, col);
-            if (row !== -1) {
-                table.gameState.board[row][col] = table.gameState.currentPlayer;
-                if (checkWin(table.gameState.board, row, col)) {
-                    io.to(`table-${tableId}`).emit('gameOver', { winner: table.gameState.currentPlayer });
-                    table.gameState = null;
-                } else if (checkDraw(table.gameState.board)) {
-                    io.to(`table-${tableId}`).emit('gameOver', { winner: 'draw' });
-                    table.gameState = null;
-                } else {
-                    table.gameState.currentPlayer = table.gameState.currentPlayer === 'red' ? 'yellow' : 'red';
-                    io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
-                }
-            }
+    ssocket.on('makeMove', ({ tableId, col }) => {
+    console.log(`Move attempt: Table ${tableId}, Column ${col}, Player ${playerName}`);
+    const table = tables[tableId];
+    if (table && table.gameState) {
+        const playerIndex = table.players.findIndex(player => player.id === socket.id);
+        const playerColor = playerIndex === 0 ? 'red' : 'yellow';
+        
+        if (playerColor !== table.gameState.currentPlayer) {
+            console.log(`Invalid move: not ${playerName}'s turn`);
+            return;
         }
-    });
+
+        const row = findLowestEmptyRow(table.gameState.board, col);
+        if (row !== -1) {
+            table.gameState.board[row][col] = playerColor;
+            console.log(`Move made: Row ${row}, Column ${col}, Player ${playerName}`);
+
+            if (checkWin(table.gameState.board, row, col)) {
+                io.to(`table-${tableId}`).emit('gameOver', { winner: playerColor });
+                table.gameState = null;
+            } else if (checkDraw(table.gameState.board)) {
+                io.to(`table-${tableId}`).emit('gameOver', { winner: 'draw' });
+                table.gameState = null;
+            } else {
+                table.gameState.currentPlayer = table.gameState.currentPlayer === 'red' ? 'yellow' : 'red';
+                io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
+            }
+        } else {
+            console.log(`Invalid move: Column ${col} is full`);
+        }
+    } else {
+        console.log(`Invalid move: No active game on table ${tableId}`);
+    }
+});
 
     socket.on('leaveTable', (tableId) => {
         const table = tables[tableId];
