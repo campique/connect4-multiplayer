@@ -58,18 +58,19 @@ io.on('connection', (socket) => {
                 table.gameState.board[row][col] = playerColor;
                 console.log(`Move made: Row ${row}, Column ${col}, Player ${playerName}`);
 
-                io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
-
                 if (checkWin(table.gameState.board, row, col)) {
+                    io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
                     io.to(`table-${tableId}`).emit('gameOver', { winner: playerColor });
                     console.log(`Game over: ${playerName} wins`);
                     askForRematch(tableId);
                 } else if (checkDraw(table.gameState.board)) {
+                    io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
                     io.to(`table-${tableId}`).emit('gameOver', { winner: 'draw' });
                     console.log(`Game over: Draw`);
                     askForRematch(tableId);
                 } else {
                     table.gameState.currentPlayer = table.gameState.currentPlayer === 'red' ? 'yellow' : 'red';
+                    io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
                     console.log(`Turn changed to ${table.gameState.currentPlayer}`);
                 }
             } else {
