@@ -82,15 +82,20 @@ io.on('connection', (socket) => {
     });
 
     socket.on('rematchVote', ({ tableId, vote }) => {
+        console.log(`Rematch vote received from ${playerName}: ${vote}`);
         const table = tables[tableId];
         if (table) {
             const playerIndex = table.players.findIndex(player => player.id === socket.id);
             table.rematchVotes[playerIndex] = vote;
 
+            console.log(`Rematch votes for table ${tableId}:`, table.rematchVotes);
+
             if (table.rematchVotes.length === 2) {
                 if (table.rematchVotes.every(v => v === true)) {
+                    console.log(`Both players voted for rematch. Starting new game on table ${tableId}`);
                     startNewGame(tableId);
                 } else {
+                    console.log(`Rematch declined. Returning players to lobby from table ${tableId}`);
                     io.to(`table-${tableId}`).emit('returnToLobby');
                     resetTable(tableId);
                 }
@@ -139,9 +144,16 @@ function startNewGame(tableId) {
 function resetTable(tableId) {
     tables[tableId].gameState = null;
     tables[tableId].rematchVotes = [];
+    tables[tableId].players.forEach(player => {
+        io.sockets.sockets.get(player.id).leave(`table-${tableId}`);
+    });
+    tables[tableId].players = [];
+    io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
 }
 
 function askForRematch(tableId) {
+    console.log(`Asking for rematch on table ${tableId}`);
+    tables[tableId].rematchVotes = [];
     io.to(`table-${tableId}`).emit('askRematch');
 }
 
