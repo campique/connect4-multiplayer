@@ -6,7 +6,7 @@ const path = require('path');
 
 app.use(express.static('public'));
 
-const tables = Array(5).fill().map(() => ({ players: [], gameState: null, rematchVotes: [] }));
+const tables = Array(5).fill().map(() => ({ players: [], gameState: null }));
 
 io.on('connection', (socket) => {
     let playerName = '';
@@ -63,18 +63,17 @@ io.on('connection', (socket) => {
                 table.gameState.board[row][col] = playerColor;
                 console.log(`Move made: Row ${row}, Column ${col}, Player ${playerName}`);
 
-                io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
-
                 if (checkWin(table.gameState.board, row, col)) {
                     io.to(`table-${tableId}`).emit('gameOver', { winner: playerColor });
+                    table.gameState = null;
                     console.log(`Game over: ${playerName} wins`);
-                    askForRematch(tableId);
                 } else if (checkDraw(table.gameState.board)) {
                     io.to(`table-${tableId}`).emit('gameOver', { winner: 'draw' });
+                    table.gameState = null;
                     console.log(`Game over: Draw`);
-                    askForRematch(tableId);
                 } else {
                     table.gameState.currentPlayer = table.gameState.currentPlayer === 'red' ? 'yellow' : 'red';
+                    io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
                     console.log(`Turn changed to ${table.gameState.currentPlayer}`);
                 }
             } else {
@@ -82,23 +81,6 @@ io.on('connection', (socket) => {
             }
         } else {
             console.log(`Invalid move: No active game on table ${tableId}`);
-        }
-    });
-
-    socket.on('rematchVote', ({ tableId, vote }) => {
-        const table = tables[tableId];
-        if (table) {
-            const playerIndex = table.players.findIndex(player => player.id === socket.id);
-            table.rematchVotes[playerIndex] = vote;
-
-            if (table.rematchVotes.length === 2) {
-                if (table.rematchVotes.every(v => v === true)) {
-                    startNewGame(tableId);
-                } else {
-                    io.to(`table-${tableId}`).emit('returnToLobby');
-                    resetTable(tableId);
-                }
-            }
         }
     });
 
@@ -129,25 +111,6 @@ io.on('connection', (socket) => {
         }
     });
 });
-
-function startNewGame(tableId) {
-    tables[tableId].gameState = {
-        board: Array(6).fill().map(() => Array(7).fill('')),
-        currentPlayer: 'red'
-    };
-    tables[tableId].rematchVotes = [];
-    io.to(`table-${tableId}`).emit('gameStarted', tables[tableId].gameState);
-    console.log(`New game started on table ${tableId}`);
-}
-
-function resetTable(tableId) {
-    tables[tableId].gameState = null;
-    tables[tableId].rematchVotes = [];
-}
-
-function askForRematch(tableId) {
-    io.to(`table-${tableId}`).emit('askRematch');
-}
 
 function findLowestEmptyRow(board, col) {
     for (let row = 5; row >= 0; row--) {
