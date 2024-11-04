@@ -88,13 +88,20 @@
         .hidden {
             display: none !important;
         }
-        .game-code {
-            font-size: 1.5rem;
-            margin: 1rem 0;
-            color: #2196F3;
-            font-weight: bold;
+        .table {
+            border: 2px solid #2196F3;
+            padding: 10px;
+            margin: 10px;
+            cursor: pointer;
         }
-        .input-code {
+        .table:hover {
+            background-color: #E3F2FD;
+        }
+        .scoreboard {
+            margin-top: 20px;
+            font-size: 1.2rem;
+        }
+        #playerName {
             margin: 1rem 0;
             padding: 0.5rem;
             font-size: 1rem;
@@ -103,47 +110,59 @@
 </head>
 <body>
     <div class="container">
-        <div id="startMenu" class="start-menu">
+        <div id="nameInput" class="start-menu">
             <h1>4 op een Rij Deluxe - Online Multiplayer</h1>
-            <button id="createGame" class="menu-button">Nieuw spel maken</button>
-            <button id="joinGame" class="menu-button">Spel joinen</button>
+            <input id="playerName" type="text" placeholder="Voer je naam in">
+            <button id="submitName" class="menu-button">Start</button>
         </div>
         <div id="lobbyContainer" class="lobby hidden">
             <h2>Lobby</h2>
-            <div id="gameCode" class="game-code"></div>
-            <input id="inputCode" class="input-code" type="text" placeholder="Voer game code in">
-            <button id="startGame" class="menu-button">Start spel</button>
+            <div id="tables"></div>
         </div>
         <div id="gameContainer" class="game-container hidden">
             <h2>4 op een Rij</h2>
             <div id="gameBoard" class="board"></div>
             <div id="status" class="status"></div>
-            <button id="restartButton" class="restart-button">Terug naar menu</button>
+            <div id="scoreboard" class="scoreboard"></div>
+            <button id="restartButton" class="restart-button">Terug naar lobby</button>
         </div>
     </div>
 
     <script>
         const socket = io();
 
-        const startMenu = document.getElementById('startMenu');
+        const nameInput = document.getElementById('nameInput');
+        const playerNameInput = document.getElementById('playerName');
+        const submitNameButton = document.getElementById('submitName');
         const lobbyContainer = document.getElementById('lobbyContainer');
+        const tablesContainer = document.getElementById('tables');
         const gameContainer = document.getElementById('gameContainer');
         const board = document.getElementById('gameBoard');
         const restartButton = document.getElementById('restartButton');
         const statusDisplay = document.getElementById('status');
-        const createGameButton = document.getElementById('createGame');
-        const joinGameButton = document.getElementById('joinGame');
-        const startGameButton = document.getElementById('startGame');
-        const gameCodeDisplay = document.getElementById('gameCode');
-        const inputCodeElement = document.getElementById('inputCode');
+        const scoreboardDisplay = document.getElementById('scoreboard');
 
         const ROWS = 6;
         const COLS = 7;
         let currentPlayer = 'red';
         let gameState = Array(ROWS).fill().map(() => Array(COLS).fill(''));
         let gameActive = false;
-        let gameId = null;
+        let tableId = null;
         let playerId = null;
+        let playerName = '';
+        let opponentName = '';
+        let playerScore = 0;
+        let opponentScore = 0;
+
+        submitNameButton.addEventListener('click', () => {
+            playerName = playerNameInput.value.trim();
+            if (playerName) {
+                socket.emit('setName', playerName);
+                nameInput.classList.add('hidden');
+                lobbyContainer.classList.remove('hidden');
+                socket.emit('getTables');
+            }
+        });
 
         function createBoard() {
             board.innerHTML = '';
@@ -160,7 +179,7 @@
 
         function handleCellClick(col) {
             if (!gameActive || currentPlayer !== playerId) return;
-            socket.emit('makeMove', { gameId, col });
+            socket.emit('makeMove', { tableId, col });
         }
 
         function updateBoard() {
@@ -177,14 +196,14 @@
 
         function updateStatus() {
             if (gameActive) {
-                statusDisplay.textContent = `${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)} is aan de beurt`;
+                statusDisplay.textContent = `${currentPlayer === playerId ? 'Jouw' : 'Tegenstander\'s'} beurt`;
             } else {
-                if (gameState.some(row => row.some(cell => cell !== ''))) {
-                    statusDisplay.textContent = `${currentPlayer === 'red' ? 'Geel' : 'Rood'} wint!`;
-                } else {
-                    statusDisplay.textContent = 'Wachten op spelers...';
-                }
+                statusDisplay.textContent = 'Wachten op tegenstander...';
             }
+        }
+
+        function updateScoreboard() {
+            scoreboardDisplay.textContent = `${playerName}: ${playerScore} - ${opponentName}: ${opponentScore}`;
         }
 
         function endGame(message) {
@@ -199,67 +218,47 @@
             }
         }
 
-        createGameButton.addEventListener('click', () => {
-            socket.emit('createGame');
-        });
-
-        joinGameButton.addEventListener('click', () => {
-            startMenu.classList.add('hidden');
-            lobbyContainer.classList.remove('hidden');
-            gameCodeDisplay.classList.add('hidden');
-            startGameButton.classList.add('hidden');
-        });
-
-        startGameButton.addEventListener('click', () => {
-            socket.emit('startGame', gameId);
-        });
-
-        inputCodeElement.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                const inputGameId = inputCodeElement.value.toUpperCase();
-                socket.emit('joinGame', inputGameId);
-            }
-        });
-
         restartButton.addEventListener('click', () => {
             gameContainer.classList.add('hidden');
-            startMenu.classList.remove('hidden');
-            socket.emit('leaveGame', gameId);
-            gameId = null;
+            lobbyContainer.classList.remove('hidden');
+            socket.emit('leaveTable', tableId);
+            socket.emit('getTables');
+            tableId = null;
             playerId = null;
         });
 
-        socket.on('gameCreated', (createdGameId) => {
-            gameId = createdGameId;
-            playerId = 'red';
-            gameCodeDisplay.textContent = `Game Code: ${gameId}`;
-            startMenu.classList.add('hidden');
-            lobbyContainer.classList.remove('hidden');
-            inputCodeElement.classList.add('hidden');
-            startGameButton.disabled = true;
+        socket.on('tablesUpdate', (tables) => {
+            tablesContainer.innerHTML = '';
+            tables.forEach((table, index) => {
+                const tableElement = document.createElement('div');
+                tableElement.classList.add('table');
+                tableElement.textContent = `Tafel ${index + 1}: ${table.players}/2 spelers`;
+                tableElement.addEventListener('click', () => socket.emit('joinTable', index));
+                tablesContainer.appendChild(tableElement);
+            });
         });
 
-        socket.on('gameJoined', (joinedGameId) => {
-            gameId = joinedGameId;
-            playerId = 'yellow';
+        socket.on('joinedTable', (data) => {
+            tableId = data.tableId;
+            playerId = data.playerId;
+            opponentName = data.opponentName;
             lobbyContainer.classList.add('hidden');
             gameContainer.classList.remove('hidden');
             createBoard();
+            updateStatus();
+            updateScoreboard();
         });
 
         socket.on('gameStarted', (game) => {
-            gameState = game.gameState;
+            gameState = game.board;
             currentPlayer = game.currentPlayer;
-            gameActive = game.gameActive;
-            lobbyContainer.classList.add('hidden');
-            gameContainer.classList.remove('hidden');
-            createBoard();
+            gameActive = true;
             updateBoard();
             updateStatus();
         });
 
         socket.on('gameUpdated', (game) => {
-            gameState = game.gameState;
+            gameState = game.board;
             currentPlayer = game.currentPlayer;
             updateBoard();
             updateStatus();
@@ -270,15 +269,24 @@
             if (winner === 'draw') {
                 endGame("Gelijkspel!");
             } else {
-                endGame(`${winner.charAt(0).toUpperCase() + winner.slice(1)} wint!`);
+                if (winner === playerId) {
+                    playerScore++;
+                } else {
+                    opponentScore++;
+                }
+                endGame(`${winner === playerId ? 'Jij wint' : 'Tegenstander wint'}!`);
             }
+            updateScoreboard();
         });
 
-        socket.on('joinError', (message) => {
-            alert(message);
+        socket.on('opponentLeft', () => {
+            endGame("Tegenstander heeft het spel verlaten");
+            setTimeout(() => {
+                gameContainer.classList.add('hidden');
+                lobbyContainer.classList.remove('hidden');
+                socket.emit('getTables');
+            }, 3000);
         });
-
-        createBoard();
     </script>
 </body>
 </html>
