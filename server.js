@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('rematchVote', ({ tableId, vote }) => {
-        console.log(`Rematch vote received from ${playerName}: ${vote}`);
+        console.log(`Rematch vote received from ${playerName}: ${vote} for table ${tableId}`);
         const table = tables[tableId];
         if (table) {
             const playerIndex = table.players.findIndex(player => player.id === socket.id);
@@ -158,6 +158,7 @@ function askForRematch(tableId) {
     console.log(`Asking for rematch on table ${tableId}`);
     tables[tableId].rematchVotes = [null, null];
     io.to(`table-${tableId}`).emit('askRematch');
+    console.log(`askRematch event emitted to table ${tableId}`);
 }
 
 function findLowestEmptyRow(board, col) {
