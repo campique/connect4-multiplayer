@@ -32,7 +32,12 @@ io.on('connection', (socket) => {
                 io.to(player1.id).emit('joinedTable', { tableId: tableIndex, playerId: 'red', opponentName: player2.name });
                 io.to(player2.id).emit('joinedTable', { tableId: tableIndex, playerId: 'yellow', opponentName: player1.name });
                 
-                startNewGame(tableIndex);
+                tables[tableIndex].gameState = {
+                    board: Array(6).fill().map(() => Array(7).fill('')),
+                    currentPlayer: 'red'
+                };
+                io.to(`table-${tableIndex}`).emit('gameStarted', tables[tableIndex].gameState);
+                console.log(`Game started on table ${tableIndex}`);
             } else {
                 socket.emit('joinedTable', { tableId: tableIndex, playerId: 'red', opponentName: '' });
             }
@@ -101,9 +106,9 @@ io.on('connection', (socket) => {
         const table = tables[tableId];
         if (table) {
             table.players = table.players.filter(player => player.id !== socket.id);
+            table.gameState = null;
             socket.leave(`table-${tableId}`);
             io.to(`table-${tableId}`).emit('opponentLeft');
-            resetTable(tableId);
             io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
             console.log(`Player ${playerName} left table ${tableId}`);
         }
@@ -116,8 +121,8 @@ io.on('connection', (socket) => {
             const playerIndex = table.players.findIndex(player => player.id === socket.id);
             if (playerIndex !== -1) {
                 table.players.splice(playerIndex, 1);
+                table.gameState = null;
                 io.to(`table-${i}`).emit('opponentLeft');
-                resetTable(i);
                 io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
                 break;
             }
