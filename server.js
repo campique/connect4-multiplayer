@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
 
             console.log(`Rematch votes for table ${tableId}:`, table.rematchVotes);
 
-            if (table.rematchVotes.length === 2) {
+            if (table.rematchVotes.filter(v => v !== null).length === 2) {
                 if (table.rematchVotes.every(v => v === true)) {
                     console.log(`Both players voted for rematch. Starting new game on table ${tableId}`);
                     startNewGame(tableId);
@@ -136,7 +136,7 @@ function startNewGame(tableId) {
         board: Array(6).fill().map(() => Array(7).fill('')),
         currentPlayer: 'red'
     };
-    tables[tableId].rematchVotes = [];
+    tables[tableId].rematchVotes = [null, null];
     io.to(`table-${tableId}`).emit('gameStarted', tables[tableId].gameState);
     console.log(`New game started on table ${tableId}`);
 }
@@ -145,7 +145,10 @@ function resetTable(tableId) {
     tables[tableId].gameState = null;
     tables[tableId].rematchVotes = [];
     tables[tableId].players.forEach(player => {
-        io.sockets.sockets.get(player.id).leave(`table-${tableId}`);
+        const socket = io.sockets.sockets.get(player.id);
+        if (socket) {
+            socket.leave(`table-${tableId}`);
+        }
     });
     tables[tableId].players = [];
     io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
@@ -153,7 +156,7 @@ function resetTable(tableId) {
 
 function askForRematch(tableId) {
     console.log(`Asking for rematch on table ${tableId}`);
-    tables[tableId].rematchVotes = [];
+    tables[tableId].rematchVotes = [null, null];
     io.to(`table-${tableId}`).emit('askRematch');
 }
 
