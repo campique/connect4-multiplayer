@@ -117,7 +117,9 @@
         </div>
         <div id="lobbyContainer" class="lobby hidden">
             <h2>Lobby</h2>
-            <div id="tables"></div>
+            <div id="tables">
+                <!-- Tafels zullen hier dynamisch worden toegevoegd -->
+            </div>
         </div>
         <div id="gameContainer" class="game-container hidden">
             <h2>4 op een Rij</h2>
@@ -229,13 +231,17 @@
 
         socket.on('tablesUpdate', (tables) => {
             tablesContainer.innerHTML = '';
-            tables.forEach((table, index) => {
-                const tableElement = document.createElement('div');
-                tableElement.classList.add('table');
-                tableElement.textContent = `Tafel ${index + 1}: ${table.players}/2 spelers`;
-                tableElement.addEventListener('click', () => socket.emit('joinTable', index));
-                tablesContainer.appendChild(tableElement);
-            });
+            if (tables.length === 0) {
+                tablesContainer.innerHTML = '<p>Er zijn momenteel geen beschikbare tafels.</p>';
+            } else {
+                tables.forEach((table, index) => {
+                    const tableElement = document.createElement('div');
+                    tableElement.classList.add('table');
+                    tableElement.textContent = `Tafel ${index + 1}: ${table.players}/2 spelers`;
+                    tableElement.addEventListener('click', () => socket.emit('joinTable', index));
+                    tablesContainer.appendChild(tableElement);
+                });
+            }
         });
 
         socket.on('joinedTable', (data) => {
