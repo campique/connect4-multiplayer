@@ -6,7 +6,7 @@ const path = require('path');
 
 app.use(express.static('public'));
 
-const tables = Array(5).fill().map(() => ({ players: [], gameState: null }));
+const tables = Array(5).fill().map(() => ({ players: [] }));
 
 io.on('connection', (socket) => {
     let playerName = '';
@@ -46,20 +46,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('makeMove', ({ tableId, col }) => {
-        console.log(`Player ${playerName} attempting move on table ${tableId}, column ${col}`);
         const table = tables[tableId];
         if (table && table.gameState) {
-            const currentPlayerIndex = table.players.findIndex(player => player.id === socket.id);
-            if (currentPlayerIndex === -1 || table.gameState.currentPlayer !== (currentPlayerIndex === 0 ? 'red' : 'yellow')) {
-                console.log(`Invalid move attempt by ${playerName}: not their turn`);
-                return;
-            }
-
             const row = findLowestEmptyRow(table.gameState.board, col);
             if (row !== -1) {
                 table.gameState.board[row][col] = table.gameState.currentPlayer;
-                console.log(`Move made: row ${row}, col ${col}, player ${table.gameState.currentPlayer}`);
-                
                 if (checkWin(table.gameState.board, row, col)) {
                     io.to(`table-${tableId}`).emit('gameOver', { winner: table.gameState.currentPlayer });
                     table.gameState = null;
@@ -70,11 +61,7 @@ io.on('connection', (socket) => {
                     table.gameState.currentPlayer = table.gameState.currentPlayer === 'red' ? 'yellow' : 'red';
                     io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
                 }
-            } else {
-                console.log(`Invalid move attempt by ${playerName}: column full`);
             }
-        } else {
-            console.log(`Invalid move attempt by ${playerName}: no active game`);
         }
     });
 
