@@ -6,103 +6,124 @@ const path = require('path');
 
 app.use(express.static('public'));
 
-const games = {};
+const tables = Array(5).fill().map(() => ({ players: [], gameState: null }));
 
 io.on('connection', (socket) => {
-  console.log('A user connected');
+    let playerName = '';
 
-  socket.on('createGame', () => {
-    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    games[gameId] = {
-      red: socket.id,
-      gameState: Array(6).fill().map(() => Array(7).fill('')),
-      currentPlayer: 'red',
-      gameActive: false
-    };
-    socket.join(gameId);
-    socket.emit('gameCreated', gameId);
-  });
+    socket.on('setName', (name) => {
+        playerName = name;
+    });
 
-  socket.on('joinGame', (gameId) => {
-    const game = games[gameId];
-    if (game && !game.yellow) {
-      game.yellow = socket.id;
-      socket.join(gameId);
-      io.to(gameId).emit('gameJoined', gameId);
-    } else {
-      socket.emit('joinError', 'Invalid game code or game is full');
-    }
-  });
+    socket.on('getTables', () => {
+        socket.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
+    });
 
-  socket.on('startGame', (gameId) => {
-    const game = games[gameId];
-    if (game) {
-      game.gameActive = true;
-      io.to(gameId).emit('gameStarted', game);
-    }
-  });
+    socket.on('joinTable', (tableIndex) => {
+        if (tables[tableIndex].players.length < 2) {
+            tables[tableIndex].players.push({ id: socket.id, name: playerName });
+            socket.join(`table-${tableIndex}`);
 
-  socket.on('makeMove', ({ gameId, col }) => {
-    const game = games[gameId];
-    if (game && game.gameActive) {
-      const row = findLowestEmptyRow(game.gameState, col);
-      if (row !== -1) {
-        game.gameState[row][col] = game.currentPlayer;
-        if (checkWin(game.gameState, row, col)) {
-          game.gameActive = false;
-          io.to(gameId).emit('gameOver', { winner: game.currentPlayer });
-        } else if (checkDraw(game.gameState)) {
-          game.gameActive = false;
-          io.to(gameId).emit('gameOver', { winner: 'draw' });
-        } else {
-          game.currentPlayer = game.currentPlayer === 'red' ? 'yellow' : 'red';
+            if (tables[tableIndex].players.length === 2) {
+                const [player1, player2] = tables[tableIndex].players;
+                io.to(player1.id).emit('joinedTable', { tableId: tableIndex, playerId: 'red', opponentName: player2.name });
+                io.to(player2.id).emit('joinedTable', { tableId: tableIndex, playerId: 'yellow', opponentName: player1.name });
+                
+                tables[tableIndex].gameState = {
+                    board: Array(6).fill().map(() => Array(7).fill('')),
+                    currentPlayer: 'red'
+                };
+                io.to(`table-${tableIndex}`).emit('gameStarted', tables[tableIndex].gameState);
+            } else {
+                socket.emit('joinedTable', { tableId: tableIndex, playerId: 'red', opponentName: '' });
+            }
+
+            io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
         }
-        io.to(gameId).emit('gameUpdated', game);
-      }
-    }
-  });
+    });
 
-  socket.on('disconnect', () => {
-    console.log('A user disconnected');
-  });
+    socket.on('makeMove', ({ tableId, col }) => {
+        const table = tables[tableId];
+        if (table && table.gameState) {
+            const row = findLowestEmptyRow(table.gameState.board, col);
+            if (row !== -1) {
+                table.gameState.board[row][col] = table.gameState.currentPlayer;
+                if (checkWin(table.gameState.board, row, col)) {
+                    io.to(`table-${tableId}`).emit('gameOver', { winner: table.gameState.currentPlayer });
+                    table.gameState = null;
+                } else if (checkDraw(table.gameState.board)) {
+                    io.to(`table-${tableId}`).emit('gameOver', { winner: 'draw' });
+                    table.gameState = null;
+                } else {
+                    table.gameState.currentPlayer = table.gameState.currentPlayer === 'red' ? 'yellow' : 'red';
+                    io.to(`table-${tableId}`).emit('gameUpdated', table.gameState);
+                }
+            }
+        }
+    });
+
+    socket.on('leaveTable', (tableId) => {
+        const table = tables[tableId];
+        if (table) {
+            table.players = table.players.filter(player => player.id !== socket.id);
+            table.gameState = null;
+            socket.leave(`table-${tableId}`);
+            io.to(`table-${tableId}`).emit('opponentLeft');
+            io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
+        }
+    });
+
+    socket.on('disconnect', () => {
+        for (let i = 0; i < tables.length; i++) {
+            const table = tables[i];
+            const playerIndex = table.players.findIndex(player => player.id === socket.id);
+            if (playerIndex !== -1) {
+                table.players.splice(playerIndex, 1);
+                table.gameState = null;
+                io.to(`table-${i}`).emit('opponentLeft');
+                io.emit('tablesUpdate', tables.map(table => ({ players: table.players.length })));
+                break;
+            }
+        }
+    });
 });
 
-function findLowestEmptyRow(gameState, col) {
-  for (let row = 5; row >= 0; row--) {
-    if (gameState[row][col] === '') {
-      return row;
+function findLowestEmptyRow(board, col) {
+    for (let row = 5; row >= 0; row--) {
+        if (board[row][col] === '') {
+            return row;
+        }
     }
-  }
-  return -1;
+    return -1;
 }
 
-function checkWin(gameState, row, col) {
-  const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
-  const player = gameState[row][col];
+function checkWin(board, row, col) {
+    const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    const player = board[row][col];
 
-  for (const [dx, dy] of directions) {
-    if (countPieces(gameState, row, col, dx, dy, player) + countPieces(gameState, row, col, -dx, -dy, player) - 1 >= 4) {
-      return true;
+    for (const [dx, dy] of directions) {
+        if (countPieces(board, row, col, dx, dy, player) + countPieces(board, row, col, -dx, -dy, player) - 1 >= 4) {
+            return true;
+        }
     }
-  }
-  return false;
+    return false;
 }
 
-function countPieces(gameState, row, col, dx, dy, player) {
-  let count = 0;
-  while (row >= 0 && row < 6 && col >= 0 && col < 7 && gameState[row][col] === player) {
-    count++;
-    row += dx;
-    col += dy;
-  }
-  return count;
+function countPieces(board, row, col, dx, dy, player) {
+    let count = 0;
+    while (row >= 0 && row < 6 && col >= 0 && col < 7 && board[row][col] === player) {
+        count++;
+        row += dx;
+        col += dy;
+    }
+    return count;
 }
 
-function checkDraw(gameState) {
-  return gameState.every(row => row.every(cell => cell !== ''));
+function checkDraw(board) {
+    return board.every(row => row.every(cell => cell !== ''));
 }
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
