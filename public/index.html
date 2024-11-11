@@ -3,29 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4 op een Rij Deluxe - Online Multiplayer</title>
+    <title>4 op een Rij Deluxe - Rheezerbelten</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+
         body {
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: linear-gradient(135deg, #4CAF50, #2196F3);
             margin: 0;
+            font-family: 'Fredoka One', cursive;
+            background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            overflow: hidden;
         }
         .container {
-            text-align: center;
-            background: white;
-            padding: 2rem;
+            background-color: rgba(255, 255, 255, 0.9);
             border-radius: 20px;
+            padding: 2rem;
             box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+        .logo {
+            width: 180px;
+            margin-bottom: 1rem;
         }
         h1, h2 {
             color: #2196F3;
             text-shadow: 2px 2px #4CAF50;
+        }
+        .mascot-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        .mascot {
+            width: 160px;
+            height: 160px;
+            object-fit: contain;
+            animation: hop 2s ease-in-out infinite;
+        }
+        @keyframes hop {
+            0%, 50%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-5px); }
+            75% { transform: translateY(-3px); }
+        }
+        .speech-bubble {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            background-color: white;
+            border-radius: 20px;
+            padding: 15px;
+            max-width: 200px;
+            text-align: center;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .speech-bubble::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -10px;
+            border: 6px solid transparent;
+            border-top-color: white;
+            transform: translateX(-50%);
         }
         .start-menu, .lobby {
             display: flex;
@@ -33,21 +86,21 @@
             align-items: center;
         }
         .menu-button, .restart-button {
-            margin: 1rem;
-            padding: 1rem 2rem;
-            font-size: 1.2rem;
-            background-color: #4CAF50;
-            border: none;
-            border-radius: 50px;
             color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
             font-weight: bold;
-            text-transform: uppercase;
+            padding: 1rem 1.5rem;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+            background-color: #00c853;
         }
         .menu-button:hover, .restart-button:hover {
-            background-color: #2196F3;
-            transform: scale(1.1);
+            transform: scale(1.05);
+            box-shadow: 0 6px 8px -2px rgba(0, 0, 0, 0.15);
         }
         .board {
             display: grid;
@@ -93,6 +146,7 @@
             padding: 10px;
             margin: 10px;
             cursor: pointer;
+            border-radius: 10px;
         }
         .table:hover {
             background-color: #E3F2FD;
@@ -105,6 +159,8 @@
             margin: 1rem 0;
             padding: 0.5rem;
             font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #2196F3;
         }
         #rematchSection {
             position: fixed;
@@ -131,12 +187,37 @@
             background-color: rgba(0,0,0,0.5);
             z-index: 999;
         }
+        .stars {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
+    <div class="stars" id="stars"></div>
     <div class="container">
+        <img src="https://www.vechtdalproducten.nl/wp-content/uploads/2017/05/rheezerbelten-logo.png" alt="Rheezerbelten Logo" class="logo">
+        <div class="mascot-container">
+            <img src="https://fcdn.answerly.io/477718fd-e50b-4758-8fcb-7709dedf75ec/6252f73f-ec36-4813-9c2c-dbf42ed04cfa.png" alt="Knof" class="mascot">
+            <div class="speech-bubble" id="knofSpeech">
+                Welkom bij 4 op een Rij! Klaar om te spelen?
+            </div>
+        </div>
         <div id="nameInput" class="start-menu">
-            <h1>4 op een Rij Deluxe - Online Multiplayer</h1>
+            <h1>4 op een Rij Deluxe</h1>
             <input id="playerName" type="text" placeholder="Voer je naam in">
             <button id="submitName" class="menu-button">Start</button>
         </div>
@@ -192,13 +273,22 @@
         let playerScore = 0;
         let opponentScore = 0;
 
-        submitNameButton.addEventListener('click', () => {
-            playerName = playerNameInput.value.trim();
-            if (playerName) {
-                socket.emit('setName', playerName);
-                nameInput.classList.add('hidden');
-                lobbyContainer.classList.remove('hidden');
-                socket.emit('getTables');
+        function updateKnofSpeech(message) {
+            const knofSpeech = document.getElementById('knofSpeech');
+            knofSpeech.textContent = message;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = `${Math.random() * 3 + 1}px`;
+                star.style.height = star.style.width;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `${Math.random() * 2}s`;
+                starsContainer.appendChild(star);
             }
         });
 
@@ -235,8 +325,10 @@
         function updateStatus() {
             if (gameActive) {
                 statusDisplay.textContent = `${currentPlayer === playerId ? 'Jouw' : 'Tegenstander\'s'} beurt`;
+                updateKnofSpeech(`${currentPlayer === playerId ? 'Jouw' : 'Tegenstander\'s'} beurt. Kies een kolom!`);
             } else {
                 statusDisplay.textContent = 'Wachten op tegenstander...';
+                updateKnofSpeech('Wachten op een tegenstander. Nog even geduld!');
             }
         }
 
@@ -247,6 +339,7 @@
         function endGame(message) {
             gameActive = false;
             statusDisplay.textContent = message;
+            updateKnofSpeech(message);
             if (message.includes("wint")) {
                 confetti({
                     particleCount: 100,
@@ -256,6 +349,17 @@
             }
         }
 
+        submitNameButton.addEventListener('click', () => {
+            playerName = playerNameInput.value.trim();
+            if (playerName) {
+                socket.emit('setName', playerName);
+                nameInput.classList.add('hidden');
+                lobbyContainer.classList.remove('hidden');
+                socket.emit('getTables');
+                updateKnofSpeech(`Hoi ${playerName}! Kies een tafel om te spelen.`);
+            }
+        });
+
         restartButton.addEventListener('click', () => {
             gameContainer.classList.add('hidden');
             lobbyContainer.classList.remove('hidden');
@@ -263,24 +367,28 @@
             socket.emit('getTables');
             tableId = null;
             playerId = null;
+            updateKnofSpeech('Terug in de lobby. Kies een nieuwe tafel!');
         });
 
         rematchYesButton.addEventListener('click', () => {
             socket.emit('rematchVote', { tableId, vote: true });
             rematchSection.classList.add('hidden');
             overlay.classList.add('hidden');
+            updateKnofSpeech('Je hebt voor een rematch gekozen. Even wachten op je tegenstander!');
         });
 
         rematchNoButton.addEventListener('click', () => {
             socket.emit('rematchVote', { tableId, vote: false });
             rematchSection.classList.add('hidden');
             overlay.classList.add('hidden');
+            updateKnofSpeech('Je hebt geen rematch gekozen. Terug naar de lobby!');        
         });
 
         socket.on('tablesUpdate', (tables) => {
             tablesContainer.innerHTML = '';
             if (tables.length === 0) {
                 tablesContainer.innerHTML = '<p>Er zijn momenteel geen beschikbare tafels.</p>';
+                updateKnofSpeech('Er zijn geen tafels beschikbaar. Wacht even tot er iemand komt!');
             } else {
                 tables.forEach((table, index) => {
                     const tableElement = document.createElement('div');
@@ -289,6 +397,7 @@
                     tableElement.addEventListener('click', () => socket.emit('joinTable', index));
                     tablesContainer.appendChild(tableElement);
                 });
+                updateKnofSpeech('Kies een tafel om te spelen!');
             }
         });
 
@@ -301,6 +410,7 @@
             createBoard();
             updateStatus();
             updateScoreboard();
+            updateKnofSpeech('Je zit aan een tafel! Wacht op je tegenstander.');
         });
 
         socket.on('gameStarted', (game) => {
@@ -309,6 +419,7 @@
             gameActive = true;
             updateBoard();
             updateStatus();
+            updateKnofSpeech('Het spel begint! Veel plezier!');
         });
 
         socket.on('gameUpdated', (game) => {
@@ -325,10 +436,11 @@
             } else {
                 if (winner === playerId) {
                     playerScore++;
+                    endGame("Jij wint!");
                 } else {
                     opponentScore++;
+                    endGame("Tegenstander wint!");
                 }
-                endGame(`${winner === playerId ? 'Jij wint' : 'Tegenstander wint'}!`);
             }
             updateScoreboard();
         });
@@ -336,6 +448,7 @@
         socket.on('askRematch', () => {
             rematchSection.classList.remove('hidden');
             overlay.classList.remove('hidden');
+            updateKnofSpeech('Wil je nog een keer spelen?');
         });
 
         socket.on('returnToLobby', () => {
@@ -344,10 +457,12 @@
             rematchSection.classList.add('hidden');
             overlay.classList.add('hidden');
             socket.emit('getTables');
+            updateKnofSpeech('Terug in de lobby. Kies een nieuwe tafel!');
         });
 
         socket.on('opponentLeft', () => {
             endGame("Tegenstander heeft het spel verlaten");
+            updateKnofSpeech('Oh nee! Je tegenstander is weggegaan. Kies straks een nieuwe tafel.');
             setTimeout(() => {
                 gameContainer.classList.add('hidden');
                 lobbyContainer.classList.remove('hidden');
