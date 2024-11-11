@@ -18,38 +18,38 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 2rem 1rem;
-            overflow: hidden;
+            padding: 1rem;
+            overflow-x: hidden;
         }
         .container {
             background-color: rgba(255, 255, 255, 0.9);
             border-radius: 20px;
-            padding: 2rem;
+            padding: 1rem;
             box-shadow: 0 0 20px rgba(0,0,0,0.2);
             text-align: center;
-            max-width: 800px;
+            max-width: 100%;
             width: 100%;
             position: relative;
             z-index: 1;
         }
         .logo {
-            width: 180px;
+            width: 120px;
             margin-bottom: 1rem;
         }
         h1, h2 {
             color: #2196F3;
             text-shadow: 2px 2px #4CAF50;
+            font-size: 1.5rem;
         }
         .mascot-container {
-            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 1rem;
         }
         .mascot {
-            width: 160px;
-            height: 160px;
+            width: 80px;
+            height: 80px;
             object-fit: contain;
             animation: hop 2s ease-in-out infinite;
         }
@@ -59,26 +59,14 @@
             75% { transform: translateY(-3px); }
         }
         .speech-bubble {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            transform: translateX(-50%);
             background-color: white;
             border-radius: 20px;
-            padding: 15px;
+            padding: 10px;
             max-width: 200px;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .speech-bubble::before {
-            content: '';
-            position: absolute;
-            left: 50%;
-            bottom: -10px;
-            border: 6px solid transparent;
-            border-top-color: white;
-            transform: translateX(-50%);
+            margin-left: 10px;
         }
         .start-menu, .lobby {
             display: flex;
@@ -88,11 +76,11 @@
         .menu-button, .restart-button {
             color: white;
             font-weight: bold;
-            padding: 1rem 1.5rem;
+            padding: 0.8rem 1.2rem;
             border-radius: 9999px;
             border: none;
             cursor: pointer;
-            font-size: 1.4rem;
+            font-size: 1rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
             margin: 0.5rem;
@@ -104,36 +92,43 @@
         }
         .board {
             display: grid;
-            grid-template-columns: repeat(7, 50px);
+            grid-template-columns: repeat(7, 1fr);
             grid-gap: 5px;
-            margin: 2rem auto;
+            margin: 1rem auto;
             background-color: #2196F3;
             padding: 10px;
             border-radius: 10px;
+            max-width: 100%;
         }
         .cell {
-            width: 50px;
-            height: 50px;
+            width: 100%;
+            padding-bottom: 100%;
             background: white;
             border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2rem;
+            position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
         }
         .cell:hover {
             background: #E3F2FD;
         }
-        .cell.red {
+        .cell.red::after, .cell.yellow::after {
+            content: '';
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            width: 90%;
+            height: 90%;
+            border-radius: 50%;
+        }
+        .cell.red::after {
             background-color: #F44336;
         }
-        .cell.yellow {
+        .cell.yellow::after {
             background-color: #FFEB3B;
         }
         .status {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             margin: 1rem 0;
             color: #2196F3;
             font-weight: bold;
@@ -153,7 +148,7 @@
         }
         .scoreboard {
             margin-top: 20px;
-            font-size: 1.2rem;
+            font-size: 1rem;
         }
         #playerName {
             margin: 1rem 0;
@@ -161,6 +156,8 @@
             font-size: 1rem;
             border-radius: 5px;
             border: 1px solid #2196F3;
+            width: 80%;
+            max-width: 300px;
         }
         #rematchSection {
             position: fixed;
@@ -175,7 +172,7 @@
             text-align: center;
         }
         #rematchSection p {
-            font-size: 1.2rem;
+            font-size: 1rem;
             margin-bottom: 20px;
         }
         .overlay {
